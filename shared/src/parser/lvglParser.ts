@@ -106,7 +106,6 @@ function parseSingleWidget(raw: any, issues: ValidationIssue[]): LvglWidget | nu
   const children: LvglWidget[] = [];
   if (Array.isArray(childrenRaw)) {
     for (const childRaw of childrenRaw) {
-      // Handle tile elements which are directly object definitions like { id: 'canvas_1', ... }
       if (childRaw && typeof childRaw === 'object' && childRaw.id && !KNOWN_WIDGET_TYPES.has(Object.keys(childRaw)[0])) {
         const tileWidget = parseSingleWidget({ container: childRaw }, issues);
         if (tileWidget) children.push(tileWidget);
@@ -144,6 +143,22 @@ export function parseLvgl(yamlObj: any): { lvgl: LvglConfig; issues: ValidationI
   const rawLvgl = yamlObj?.lvgl || {};
   const rawWidgets = rawLvgl.widgets || yamlObj?.widgets || [];
 
+  const displaysList: string[] = [];
+  if (Array.isArray(rawLvgl.displays)) {
+    for (const d of rawLvgl.displays) {
+      if (typeof d === 'string') displaysList.push(d);
+      else if (d && typeof d === 'object' && d.display_id) displaysList.push(d.display_id);
+    }
+  }
+
+  const touchscreensList: string[] = [];
+  if (Array.isArray(rawLvgl.touchscreens)) {
+    for (const t of rawLvgl.touchscreens) {
+      if (typeof t === 'string') touchscreensList.push(t);
+      else if (t && typeof t === 'object' && t.touchscreen_id) touchscreensList.push(t.touchscreen_id);
+    }
+  }
+
   const widgets: LvglWidget[] = [];
 
   if (Array.isArray(rawWidgets)) {
@@ -169,7 +184,9 @@ export function parseLvgl(yamlObj: any): { lvgl: LvglConfig; issues: ValidationI
 
   return {
     lvgl: {
-      displays: rawLvgl.displays || [],
+      displays: displaysList,
+      touchscreens: touchscreensList,
+      pageWrap: rawLvgl.page_wrap,
       widgets
     },
     issues

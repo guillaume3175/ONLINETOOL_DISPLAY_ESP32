@@ -84,6 +84,8 @@ export interface LvglWidget {
 
 export interface LvglConfig {
   displays?: string[];
+  touchscreens?: string[];
+  pageWrap?: boolean;
   widgets: LvglWidget[];
 }
 

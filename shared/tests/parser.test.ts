@@ -58,10 +58,39 @@ lvgl:
     expect(project.display.height).toBe(320);
     expect(project.display.platform).toBe('mipi_spi');
     expect(project.touchscreen?.platform).toBe('axs5106');
+    expect(project.lvgl.displays).toContain('lcd');
     expect(project.lvgl.widgets.length).toBe(1);
     expect(project.lvgl.widgets[0].type).toBe('tileview');
     expect(project.lvgl.widgets[0].children?.length).toBe(1);
     expect(project.lvgl.widgets[0].children![0].children![0].type).toBe('container');
+  });
+
+  it('correctly parses lvgl.touchscreens objects and page_wrap flag', () => {
+    const yamlWithTouchscreens = `
+display:
+  id: lcd
+  width: 172
+  height: 320
+touchscreen:
+  - platform: axs5106
+    id: mini_touch
+lvgl:
+  displays:
+    - lcd
+  touchscreens:
+    - touchscreen_id: mini_touch
+  page_wrap: false
+  widgets:
+    - tileview:
+        id: iphone_swipe
+        scrollbar_mode: "OFF"
+`;
+
+    const project = parseYamlToProject(yamlWithTouchscreens);
+    expect(project.lvgl.displays).toContain('lcd');
+    expect(project.lvgl.touchscreens).toContain('mini_touch');
+    expect(project.lvgl.pageWrap).toBe(false);
+    expect(project.lvgl.widgets[0].properties.scrollbar_mode).toBe('OFF');
   });
 
   it('handles unknown widgets gracefully without throwing', () => {

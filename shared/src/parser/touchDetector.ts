@@ -8,7 +8,28 @@ export function detectTouchscreen(yamlObj: any): { touchscreen?: TouchConfig; is
     rawTouch = rawTouch[0];
   }
 
+  // Fallback to checking lvgl.touchscreens references if rawTouch is missing or ID lookup is needed
   if (!rawTouch || typeof rawTouch !== 'object') {
+    const lvglTouchscreens = yamlObj?.lvgl?.touchscreens;
+    if (Array.isArray(lvglTouchscreens) && lvglTouchscreens.length > 0) {
+      const firstLvglTouch = lvglTouchscreens[0];
+      const touchId = typeof firstLvglTouch === 'string' ? firstLvglTouch : firstLvglTouch?.touchscreen_id;
+      if (touchId) {
+        issues.push({
+          type: 'INFO',
+          message: `Detected Touch Controller reference in LVGL: ${touchId}`
+        });
+        return {
+          touchscreen: {
+            id: touchId,
+            driver: 'Linked Touch Controller',
+            busType: 'I2C'
+          },
+          issues
+        };
+      }
+    }
+
     issues.push({
       type: 'INFO',
       message: 'No touch controller configuration found.'
