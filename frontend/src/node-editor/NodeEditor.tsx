@@ -6,15 +6,28 @@ import {
   Node,
   Edge,
   useNodesState,
-  useEdgesState
+  useEdgesState,
+  NodeTypes
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { Esp32Project, LvglWidget } from '@esp32-designer/shared';
+import {
+  Esp32Project,
+  LvglWidget,
+  getConnectedComponents,
+  calculateGroupContainers
+} from '@esp32-designer/shared';
+import { CustomNode } from './CustomNode';
+import { GroupNode } from './GroupNode';
 
 interface NodeEditorProps {
   project: Esp32Project;
   onSelectWidget: (widgetId: string) => void;
 }
+
+const nodeTypes: NodeTypes = {
+  customWidgetNode: CustomNode,
+  groupContainerNode: GroupNode
+};
 
 export const NodeEditor: React.FC<NodeEditorProps> = ({ project, onSelectWidget }) => {
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
@@ -24,158 +37,114 @@ export const NodeEditor: React.FC<NodeEditorProps> = ({ project, onSelectWidget 
   const [highlightDependencies, setHighlightDependencies] = useState<boolean>(true);
   const [hideUnconnected, setHideUnconnected] = useState<boolean>(false);
 
-  // Compute upstream/downstream dependencies whenever selectedNodeId or edges change
-  const dependencyInfo = useMemo(() => {
-    if (!selectedNodeId) {
-      return { upstreamNodes: new Set<string>(), downstreamNodes: new Set<string>(), connectedEdges: new Set<string>() };
-    }
-
-    const upstreamNodes = new Set<string>();
-    const downstreamNodes = new Set<string>();
-    const connectedEdges = new Set<string>();
-
-    // Helper for finding upstream (ancestors)
-    const findUpstream = (nodeId: string) => {
-      edges.forEach((e) => {
-        if (e.target === nodeId) {
-          upstreamNodes.add(e.source);
-          connectedEdges.add(e.id);
-          findUpstream(e.source);
-        }
-      });
-    };
-
-    // Helper for finding downstream (descendants)
-    const findDownstream = (nodeId: string) => {
-      edges.forEach((e) => {
-        if (e.source === nodeId) {
-          downstreamNodes.add(e.target);
-          connectedEdges.add(e.id);
-          findDownstream(e.target);
-        }
-      });
-    };
-
-    findUpstream(selectedNodeId);
-    findDownstream(selectedNodeId);
-
-    return { upstreamNodes, downstreamNodes, connectedEdges };
-  }, [selectedNodeId, edges]);
-
+  // Initialize nodes and edges from project structure
   useEffect(() => {
     const initialNodes: Node[] = [];
     const initialEdges: Edge[] = [];
 
-    // Group 1: Hardware Group
+    // Board Node
     initialNodes.push({
-      id: 'group-hardware',
+      id: 'node-board',
+      type: 'customWidgetNode',
       position: { x: 40, y: 40 },
-      data: { label: 'HARDWARE LAYER' },
-      style: {
-        width: 320,
-        height: 280,
-        backgroundColor: 'rgba(30, 41, 59, 0.4)',
-        border: '1px dashed #3b82f6',
-        borderRadius: '12px',
-        color: '#94a3b8',
-        fontSize: '11px',
-        fontWeight: 'bold',
-        padding: '10px'
+      data: {
+        label: project.board.board || 'ESP32 DevKit',
+        type: 'ESP32 MCU',
+        badge: 'MCU'
       }
     });
 
-    // Board Node inside Hardware Group
-    initialNodes.push({
-      id: 'node-board',
-      parentId: 'group-hardware',
-      extent: 'parent',
-      position: { x: 20, y: 40 },
-      data: { label: `ESP32 (${project.board.board || 'DevKit'})` },
-      style: { background: '#1e293b', color: '#f8fafc', border: '1px solid #3b82f6', borderRadius: '8px', padding: '10px', width: 280 }
-    });
-
-    // Display Node inside Hardware Group
+    // Display Node
     initialNodes.push({
       id: 'node-display',
-      parentId: 'group-hardware',
-      extent: 'parent',
-      position: { x: 20, y: 110 },
-      data: { label: `Display (${project.display.driver} - ${project.display.width}x${project.display.height})` },
-      style: { background: '#1e293b', color: '#f8fafc', border: '1px solid #10b981', borderRadius: '8px', padding: '10px', width: 280 }
+      type: 'customWidgetNode',
+      position: { x: 300, y: 40 },
+      data: {
+        label: `${project.display.driver || 'Display'}`,
+        subtitle: `${project.display.width}x${project.display.height} px`,
+        type: 'Display',
+        badge: 'SPI/I2C'
+      }
     });
-    initialEdges.push({ id: 'e-board-display', source: 'node-board', target: 'node-display', animated: true });
+    initialEdges.push({
+      id: 'e-board-display',
+      source: 'node-board',
+      target: 'node-display',
+      type: 'smoothstep'
+    });
 
-    // Touch Node inside Hardware Group
+    // Touch Node
     if (project.touchscreen) {
       initialNodes.push({
         id: 'node-touch',
-        parentId: 'group-hardware',
-        extent: 'parent',
-        position: { x: 20, y: 180 },
-        data: { label: `Touch (${project.touchscreen.driver})` },
-        style: { background: '#1e293b', color: '#f8fafc', border: '1px solid #f59e0b', borderRadius: '8px', padding: '10px', width: 280 }
+        type: 'customWidgetNode',
+        position: { x: 300, y: 140 },
+        data: {
+          label: `${project.touchscreen.driver || 'Touch'}`,
+          type: 'Touchscreen',
+          badge: 'I2C'
+        }
       });
-      initialEdges.push({ id: 'e-board-touch', source: 'node-board', target: 'node-touch', animated: true });
+      initialEdges.push({
+        id: 'e-board-touch',
+        source: 'node-board',
+        target: 'node-touch',
+        type: 'smoothstep'
+      });
     }
 
-    // Group 2: LVGL Root Screen Group
-    initialNodes.push({
-      id: 'group-lvgl',
-      position: { x: 400, y: 40 },
-      data: { label: 'LVGL UI LAYER' },
-      style: {
-        width: 300,
-        height: 120,
-        backgroundColor: 'rgba(49, 46, 129, 0.3)',
-        border: '1px dashed #6366f1',
-        borderRadius: '12px',
-        color: '#a5b4fc',
-        fontSize: '11px',
-        fontWeight: 'bold',
-        padding: '10px'
-      }
-    });
-
+    // LVGL Root Canvas Node
     initialNodes.push({
       id: 'node-lvgl-root',
-      parentId: 'group-lvgl',
-      extent: 'parent',
-      position: { x: 20, y: 40 },
-      data: { label: 'LVGL Screen Canvas' },
-      style: { background: '#312e81', color: '#e0e7ff', border: '1px solid #6366f1', borderRadius: '8px', padding: '10px', width: 260 }
+      type: 'customWidgetNode',
+      position: { x: 560, y: 40 },
+      data: {
+        label: 'LVGL Screen Canvas',
+        type: 'LVGL ROOT',
+        badge: 'SCREEN',
+        isContainer: true
+      }
     });
-    initialEdges.push({ id: 'e-display-lvgl', source: 'node-display', target: 'node-lvgl-root' });
+    initialEdges.push({
+      id: 'e-display-lvgl',
+      source: 'node-display',
+      target: 'node-lvgl-root',
+      type: 'smoothstep'
+    });
 
-    // Group 3: Widgets & Tiles Stacked Hierarchy
+    // LVGL Widgets Stacked Hierarchy
     let yCounters: Record<number, number> = {};
 
     function addWidgetNodes(widget: LvglWidget, parentNodeId: string, level: number) {
-      const levelX = 740 + level * 260;
+      const levelX = 840 + level * 280;
       yCounters[level] = (yCounters[level] || 0) + 1;
-      const levelY = yCounters[level] * 80;
+      const levelY = yCounters[level] * 90 - 40;
 
       const widgetNodeId = `node-widget-${widget.id}`;
-      const isContainer = widget.type === 'tileview' || widget.type === 'container' || widget.type === 'tile' || widget.type === 'tiles' || widget.type === 'obj';
+      const isContainer =
+        widget.type === 'tileview' ||
+        widget.type === 'container' ||
+        widget.type === 'tile' ||
+        widget.type === 'tiles' ||
+        widget.type === 'obj';
 
       initialNodes.push({
         id: widgetNodeId,
+        type: 'customWidgetNode',
         position: { x: levelX, y: levelY },
-        data: { label: `${widget.type.toUpperCase()}: ${widget.id}` },
-        style: {
-          background: isContainer ? '#1e1b4b' : '#0f172a',
-          color: isContainer ? '#818cf8' : '#cbd5e1',
-          border: isContainer ? '1.5px solid #6366f1' : '1px solid #475569',
-          borderRadius: '8px',
-          padding: '10px',
-          fontSize: '12px',
-          width: 220
+        data: {
+          label: widget.id,
+          type: widget.type.toUpperCase(),
+          badge: isContainer ? 'CONTAINER' : 'WIDGET',
+          isContainer
         }
       });
 
       initialEdges.push({
         id: `e-${parentNodeId}-${widget.id}`,
         source: parentNodeId,
-        target: widgetNodeId
+        target: widgetNodeId,
+        type: 'smoothstep'
       });
 
       if (widget.children && widget.children.length > 0) {
@@ -193,11 +162,79 @@ export const NodeEditor: React.FC<NodeEditorProps> = ({ project, onSelectWidget 
     setEdges(initialEdges);
   }, [project, setNodes, setEdges]);
 
-  // Apply visual styling based on selection, dependency highlighting, and hideUnconnected toggle
-  const styledNodes = useMemo(() => {
-    return nodes.map((node) => {
-      if (node.id.startsWith('group-')) {
-        return node; // don't hide or recolor outer group containers
+  // Dynamically compute connected components and group container nodes
+  const groupContainerNodes = useMemo<Node[]>(() => {
+    // Only pass non-group nodes to component detection
+    const nonGroupNodes = nodes.filter((n) => n.type !== 'groupContainerNode');
+    const components = getConnectedComponents(nonGroupNodes, edges);
+    const containers = calculateGroupContainers(components, nonGroupNodes, {
+      padding: 24,
+      headerHeight: 32
+    });
+
+    return containers.map((c) => ({
+      id: c.id,
+      type: 'groupContainerNode',
+      position: { x: c.bounds.x, y: c.bounds.y },
+      data: {
+        title: c.title,
+        nodeCount: c.nodeIds.length,
+        width: c.bounds.width,
+        height: c.bounds.height
+      },
+      selectable: false,
+      draggable: false,
+      zIndex: -1
+    }));
+  }, [nodes, edges]);
+
+  // Combine regular nodes and group containers (group containers positioned behind)
+  const combinedNodes = useMemo<Node[]>(() => {
+    const nonGroupNodes = nodes.filter((n) => n.type !== 'groupContainerNode');
+    return [...groupContainerNodes, ...nonGroupNodes];
+  }, [nodes, groupContainerNodes]);
+
+  // Dependency graph computation (Upstream / Downstream)
+  const dependencyInfo = useMemo(() => {
+    if (!selectedNodeId) {
+      return { upstreamNodes: new Set<string>(), downstreamNodes: new Set<string>(), connectedEdges: new Set<string>() };
+    }
+
+    const upstreamNodes = new Set<string>();
+    const downstreamNodes = new Set<string>();
+    const connectedEdges = new Set<string>();
+
+    const findUpstream = (nodeId: string) => {
+      edges.forEach((e) => {
+        if (e.target === nodeId) {
+          upstreamNodes.add(e.source);
+          connectedEdges.add(e.id);
+          findUpstream(e.source);
+        }
+      });
+    };
+
+    const findDownstream = (nodeId: string) => {
+      edges.forEach((e) => {
+        if (e.source === nodeId) {
+          downstreamNodes.add(e.target);
+          connectedEdges.add(e.id);
+          findDownstream(e.target);
+        }
+      });
+    };
+
+    findUpstream(selectedNodeId);
+    findDownstream(selectedNodeId);
+
+    return { upstreamNodes, downstreamNodes, connectedEdges };
+  }, [selectedNodeId, edges]);
+
+  // Styling and filtering based on dependencies / focus options
+  const styledNodes = useMemo<Node[]>(() => {
+    return combinedNodes.map((node) => {
+      if (node.type === 'groupContainerNode') {
+        return node;
       }
 
       const isSelected = node.id === selectedNodeId;
@@ -210,42 +247,17 @@ export const NodeEditor: React.FC<NodeEditorProps> = ({ project, onSelectWidget 
         hidden = true;
       }
 
-      let customStyle = { ...node.style };
+      let customStyle = { ...(node.style || {}) };
 
       if (selectedNodeId && highlightDependencies) {
         if (isSelected) {
-          customStyle = {
-            ...customStyle,
-            border: '2px solid #38bdf8',
-            boxShadow: '0 0 15px rgba(56, 189, 248, 0.6)',
-            background: '#0284c7',
-            color: '#ffffff'
-          };
+          customStyle = { ...customStyle, opacity: 1 };
         } else if (isUpstream) {
-          // Upstream dependencies (parents / sources) - Orange / Coral
-          customStyle = {
-            ...customStyle,
-            border: '2px solid #f97316',
-            boxShadow: '0 0 10px rgba(249, 115, 22, 0.4)',
-            background: '#7c2d12',
-            color: '#ffedd5'
-          };
+          customStyle = { ...customStyle, opacity: 1, filter: 'drop-shadow(0 0 8px rgba(249,115,22,0.5))' };
         } else if (isDownstream) {
-          // Downstream dependencies (children / targets) - Emerald Green
-          customStyle = {
-            ...customStyle,
-            border: '2px solid #10b981',
-            boxShadow: '0 0 10px rgba(16, 185, 129, 0.4)',
-            background: '#064e3b',
-            color: '#d1fae5'
-          };
+          customStyle = { ...customStyle, opacity: 1, filter: 'drop-shadow(0 0 8px rgba(16,185,129,0.5))' };
         } else {
-          // Unconnected dimmed node
-          customStyle = {
-            ...customStyle,
-            opacity: 0.35,
-            filter: 'grayscale(60%)'
-          };
+          customStyle = { ...customStyle, opacity: 0.3, filter: 'grayscale(60%)' };
         }
       }
 
@@ -255,9 +267,9 @@ export const NodeEditor: React.FC<NodeEditorProps> = ({ project, onSelectWidget 
         style: customStyle
       };
     });
-  }, [nodes, selectedNodeId, dependencyInfo, highlightDependencies, hideUnconnected]);
+  }, [combinedNodes, selectedNodeId, dependencyInfo, highlightDependencies, hideUnconnected]);
 
-  const styledEdges = useMemo(() => {
+  const styledEdges = useMemo<Edge[]>(() => {
     return edges.map((edge) => {
       const isConnected = dependencyInfo.connectedEdges.has(edge.id);
 
@@ -266,15 +278,15 @@ export const NodeEditor: React.FC<NodeEditorProps> = ({ project, onSelectWidget 
         hidden = true;
       }
 
-      let style = { ...edge.style };
-      let animated = edge.animated;
+      let style = { ...(edge.style || {}), stroke: '#475569', strokeWidth: 1.5 };
+      let animated = false;
 
       if (selectedNodeId && highlightDependencies) {
         if (isConnected) {
           style = { stroke: '#38bdf8', strokeWidth: 2.5 };
           animated = true;
         } else {
-          style = { stroke: '#334155', strokeWidth: 1, opacity: 0.2 };
+          style = { stroke: '#1e293b', strokeWidth: 1, opacity: 0.2 };
         }
       }
 
@@ -289,10 +301,10 @@ export const NodeEditor: React.FC<NodeEditorProps> = ({ project, onSelectWidget 
 
   return (
     <div className="w-full h-full bg-slate-950 relative">
-      {/* Dependency Controls Overlay */}
+      {/* Dependency Options Panel */}
       <div className="absolute top-4 right-4 z-10 bg-slate-900/90 border border-slate-800 rounded-lg p-3 shadow-xl flex flex-col gap-2 text-xs text-slate-200 backdrop-blur-sm">
         <div className="font-semibold text-slate-100 flex items-center justify-between border-b border-slate-800 pb-1.5">
-          <span>Dependency Options</span>
+          <span>Graph & Group Options</span>
           {selectedNodeId && (
             <button
               onClick={() => setSelectedNodeId(null)}
@@ -310,7 +322,7 @@ export const NodeEditor: React.FC<NodeEditorProps> = ({ project, onSelectWidget 
             onChange={(e) => setHighlightDependencies(e.target.checked)}
             className="rounded bg-slate-800 border-slate-700 text-cyan-500 focus:ring-cyan-500"
           />
-          <span>Highlight Up / Down Dependencies</span>
+          <span>Highlight Up/Down Dependencies</span>
         </label>
 
         <label className="flex items-center gap-2 cursor-pointer hover:text-white">
@@ -326,15 +338,15 @@ export const NodeEditor: React.FC<NodeEditorProps> = ({ project, onSelectWidget 
         {selectedNodeId && highlightDependencies && (
           <div className="mt-1 pt-2 border-t border-slate-800 flex flex-col gap-1 text-[11px]">
             <div className="flex items-center gap-1.5 text-cyan-400 font-medium">
-              <span className="w-2.5 h-2.5 rounded-full bg-sky-500 inline-block"></span>
+              <span className="w-2.5 h-2.5 rounded-full bg-sky-500 inline-block" />
               Selected Node
             </div>
             <div className="flex items-center gap-1.5 text-orange-400 font-medium">
-              <span className="w-2.5 h-2.5 rounded-full bg-orange-500 inline-block"></span>
+              <span className="w-2.5 h-2.5 rounded-full bg-orange-500 inline-block" />
               Upstream Parent (Sources)
             </div>
             <div className="flex items-center gap-1.5 text-emerald-400 font-medium">
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block"></span>
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block" />
               Downstream Child (Targets)
             </div>
           </div>
@@ -344,9 +356,11 @@ export const NodeEditor: React.FC<NodeEditorProps> = ({ project, onSelectWidget 
       <ReactFlow
         nodes={styledNodes}
         edges={styledEdges}
+        nodeTypes={nodeTypes}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onNodeClick={(_, node) => {
+          if (node.type === 'groupContainerNode') return;
           setSelectedNodeId(node.id);
           if (node.id.startsWith('node-widget-')) {
             const wId = node.id.replace('node-widget-', '');
