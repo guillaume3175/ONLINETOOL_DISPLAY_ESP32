@@ -9,52 +9,150 @@ import { Code, Eye, Network, AlertCircle, CheckCircle, Upload, Plus } from 'luci
 const DEFAULT_YAML = `
 esphome:
   name: waveshare-s3-147b
+  friendly_name: Waveshare 1.47B Horloge Météo
 
 esp32:
   board: esp32-s3-devkitc-1
+  framework:
+    type: esp-idf
 
 display:
-  - platform: st7789v
-    id: main_display
-    width: 172
-    height: 320
-    rotation: 0
+  - platform: mipi_spi
+    id: lcd
+    model: CUSTOM
+    dc_pin: GPIO45
+    cs_pin: GPIO21
+    reset_pin: GPIO40
+    dimensions:
+      width: 172
+      height: 320
+
+i2c:
+  sda: GPIO42
+  scl: GPIO41
 
 touchscreen:
-  - platform: cst816s
+  - platform: axs5106
+    id: mini_touch
+    display: lcd
 
 lvgl:
   displays:
-    - main_display
+    - lcd
+  touchscreens:
+    - touchscreen_id: mini_touch
+  page_wrap: false
 
   widgets:
-    - label:
-        id: title_lbl
-        text: "ESP32 LVGL"
-        x: 20
-        y: 20
+    - tileview:
+        id: iphone_swipe
+        x: 0
+        y: 0
+        width: 172
+        height: 320
+        scrollbar_mode: "OFF"
 
-    - button:
-        id: start_btn
-        x: 20
-        y: 80
-        width: 130
-        height: 40
-        text: "START TEST"
+        tiles:
+          - id: canvas_1
+            row: 0
+            column: 0
+            dir: HOR
+            bg_color: 0xF2F2F7
+            widgets:
+              - obj:
+                  x: 10
+                  y: 8
+                  width: 152
+                  height: 30
+                  bg_color: 0xFFFFFF
+                  radius: 15
+                  border_width: 0
+                  widgets:
+                    - label:
+                        x: 0
+                        y: 0
+                        align: center
+                        text: "METEO"
+                        text_color: 0x8E8E93
 
-    - slider:
-        id: brightness_slider
-        x: 20
-        y: 140
-        width: 130
-        value: 75
+              - obj:
+                  x: 10
+                  y: 50
+                  width: 152
+                  height: 108
+                  bg_color: 0xFFFFFF
+                  radius: 24
+                  border_width: 0
+                  widgets:
+                    - label:
+                        id: lv_time
+                        x: 0
+                        y: 10
+                        width: 152
+                        text: "12:42"
+                        text_color: 0x1C1C1E
 
-    - switch:
-        id: power_switch
-        x: 20
-        y: 190
-        text: "Power"
-        checked: true
+                    - label:
+                        id: lv_day
+                        x: 0
+                        y: 70
+                        width: 152
+                        text: "Lundi"
+                        text_color: 0x8E8E93
+
+                    - label:
+                        id: lv_date
+                        x: 0
+                        y: 86
+                        width: 152
+                        text: "22/09/2026"
+                        text_color: 0x1C1C1E
+
+              - obj:
+                  x: 10
+                  y: 163
+                  width: 152
+                  height: 78
+                  bg_color: 0xFFFFFF
+                  radius: 22
+                  border_width: 0
+                  widgets:
+                    - label:
+                        x: 0
+                        y: 10
+                        text: "TEMPERATURE"
+                        text_color: 0x8E8E93
+
+                    - label:
+                        id: lv_temperature
+                        x: 10
+                        y: 29
+                        width: 92
+                        text: "22.5°"
+                        text_color: 0x1C1C1E
+
+              - obj:
+                  x: 10
+                  y: 251
+                  width: 152
+                  height: 48
+                  bg_color: 0xFFFFFF
+                  radius: 20
+                  border_width: 0
+                  widgets:
+                    - label:
+                        x: 14
+                        y: 7
+                        text: "Wi-Fi"
+                        text_color: 0x1C1C1E
+
+                    - label:
+                        id: lv_wifi_quality
+                        x: 91
+                        y: 7
+                        width: 47
+                        text: "98%"
+                        text_color: 0x34C759
 `;
 
 export default function App() {

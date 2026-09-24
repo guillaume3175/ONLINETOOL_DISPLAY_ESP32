@@ -19,10 +19,13 @@ export const WidgetRenderer: React.FC<WidgetRendererProps> = ({
     onSelect(widget.id);
   };
 
+  const isCentered = widget.style?.align === 'center' || widget.properties?.align === 'center';
+
   const style: React.CSSProperties = {
     position: 'absolute',
-    left: `${widget.x}px`,
-    top: `${widget.y}px`,
+    left: isCentered ? '50%' : `${widget.x}px`,
+    top: isCentered ? '50%' : `${widget.y}px`,
+    transform: isCentered ? 'translate(-50%, -50%)' : undefined,
     width: widget.width ? `${widget.width}px` : undefined,
     height: widget.height ? `${widget.height}px` : undefined,
     backgroundColor: widget.style?.bg_color,
@@ -32,12 +35,6 @@ export const WidgetRenderer: React.FC<WidgetRendererProps> = ({
     borderColor: widget.style?.border_color || 'transparent',
     boxSizing: 'border-box'
   };
-
-  if (widget.style?.align === 'center') {
-    style.left = '50%';
-    style.top = '50%';
-    style.transform = 'translate(-50%, -50%)';
-  }
 
   const borderClass = isSelected
     ? 'ring-2 ring-accentBlue ring-offset-1 ring-offset-black z-20'
@@ -144,7 +141,10 @@ export const WidgetRenderer: React.FC<WidgetRendererProps> = ({
       );
 
     case 'tileview':
+    case 'tile':
+    case 'tiles':
     case 'container':
+    case 'obj':
       return (
         <div
           onClick={handleClick}

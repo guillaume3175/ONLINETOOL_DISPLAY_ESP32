@@ -14,6 +14,7 @@ const KNOWN_WIDGET_TYPES = new Set<string>([
   'obj',
   'tileview',
   'tiles',
+  'tile',
   'meter',
   'image',
   'page',
@@ -48,11 +49,8 @@ function parseTextValue(rawText: any): string | undefined {
 function parseSingleWidget(raw: any, issues: ValidationIssue[]): LvglWidget | null {
   if (!raw || typeof raw !== 'object') return null;
 
-  let key = Object.keys(raw)[0];
-  let val = raw[key];
-
-  let typeStr = key;
-  let widgetData = val || {};
+  let typeStr = Object.keys(raw)[0];
+  let widgetData = raw[typeStr] || {};
 
   if (raw.type && typeof raw.type === 'string') {
     typeStr = raw.type;
@@ -106,12 +104,15 @@ function parseSingleWidget(raw: any, issues: ValidationIssue[]): LvglWidget | nu
   const children: LvglWidget[] = [];
   if (Array.isArray(childrenRaw)) {
     for (const childRaw of childrenRaw) {
-      if (childRaw && typeof childRaw === 'object' && childRaw.id && !KNOWN_WIDGET_TYPES.has(Object.keys(childRaw)[0])) {
-        const tileWidget = parseSingleWidget({ container: childRaw }, issues);
-        if (tileWidget) children.push(tileWidget);
-      } else {
-        const childWidget = parseSingleWidget(childRaw, issues);
-        if (childWidget) children.push(childWidget);
+      if (childRaw && typeof childRaw === 'object') {
+        const firstKey = Object.keys(childRaw)[0];
+        if (childRaw.id && !KNOWN_WIDGET_TYPES.has(firstKey)) {
+          const tileWidget = parseSingleWidget({ container: childRaw }, issues);
+          if (tileWidget) children.push(tileWidget);
+        } else {
+          const childWidget = parseSingleWidget(childRaw, issues);
+          if (childWidget) children.push(childWidget);
+        }
       }
     }
   }
