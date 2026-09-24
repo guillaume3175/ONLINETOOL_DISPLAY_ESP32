@@ -8,6 +8,14 @@ export function detectTouchscreen(yamlObj: any): { touchscreen?: TouchConfig; is
     rawTouch = rawTouch[0];
   }
 
+  // Determine bus type
+  let detectedBus: TouchConfig['busType'] = 'Unknown';
+  if (yamlObj?.i2c || (rawTouch && (rawTouch.i2c_id || rawTouch.sda_pin))) {
+    detectedBus = 'I2C';
+  } else if (rawTouch && (rawTouch.spi_id || rawTouch.cs_pin)) {
+    detectedBus = 'SPI';
+  }
+
   // Fallback to checking lvgl.touchscreens references if rawTouch is missing or ID lookup is needed
   if (!rawTouch || typeof rawTouch !== 'object') {
     const lvglTouchscreens = yamlObj?.lvgl?.touchscreens;
@@ -17,13 +25,13 @@ export function detectTouchscreen(yamlObj: any): { touchscreen?: TouchConfig; is
       if (touchId) {
         issues.push({
           type: 'INFO',
-          message: `Detected Touch Controller reference in LVGL: ${touchId}`
+          message: `Detected Touch Controller: ${touchId} (${detectedBus} bus)`
         });
         return {
           touchscreen: {
             id: touchId,
-            driver: 'Linked Touch Controller',
-            busType: 'I2C'
+            driver: touchId,
+            busType: detectedBus
           },
           issues
         };
@@ -42,19 +50,12 @@ export function detectTouchscreen(yamlObj: any): { touchscreen?: TouchConfig; is
   const model = rawTouch.model;
   const driver = platform || model || 'Unknown';
 
-  let busType: TouchConfig['busType'] = 'Unknown';
-  if (yamlObj?.i2c || rawTouch.i2c_id || rawTouch.sda_pin) {
-    busType = 'I2C';
-  } else if (rawTouch.spi_id || rawTouch.cs_pin) {
-    busType = 'SPI';
-  }
-
   const touchscreen: TouchConfig = {
     id,
     platform,
     model,
     driver,
-    busType,
+    busType: detectedBus,
     i2cSdaPin: rawTouch.sda_pin,
     i2cSclPin: rawTouch.scl_pin,
     interruptPin: rawTouch.interrupt_pin || rawTouch.irq_pin,
@@ -63,7 +64,7 @@ export function detectTouchscreen(yamlObj: any): { touchscreen?: TouchConfig; is
 
   issues.push({
     type: 'INFO',
-    message: `Detected Touch Controller: ${touchscreen.driver} (${busType} bus)`
+    message: `Detected Touch Controller: ${touchscreen.driver} (${detectedBus} bus)`
   });
 
   return { touchscreen, issues };
