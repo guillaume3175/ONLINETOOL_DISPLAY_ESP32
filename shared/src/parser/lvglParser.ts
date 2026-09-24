@@ -80,6 +80,7 @@ function parseSingleWidget(raw: any, issues: ValidationIssue[]): LvglWidget | nu
   const width = typeof widgetData.width === 'number' ? widgetData.width : undefined;
   const height = typeof widgetData.height === 'number' ? widgetData.height : undefined;
   const text = parseTextValue(widgetData.text) || parseTextValue(widgetData.label);
+  const textFont = widgetData.text_font;
 
   const value = typeof widgetData.value === 'number' ? widgetData.value : undefined;
   const minValue = typeof widgetData.min_value === 'number' ? widgetData.min_value : undefined;
@@ -125,6 +126,7 @@ function parseSingleWidget(raw: any, issues: ValidationIssue[]): LvglWidget | nu
     width,
     height,
     text,
+    textFont,
     value,
     minValue,
     maxValue,

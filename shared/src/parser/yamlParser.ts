@@ -1,5 +1,5 @@
 import { parse } from 'yaml';
-import { Esp32Project, ValidationIssue, BoardConfig } from '../types/project.js';
+import { Esp32Project, ValidationIssue, BoardConfig, FontConfig } from '../types/project.js';
 import { detectDisplay } from './displayDetector.js';
 import { detectTouchscreen } from './touchDetector.js';
 import { parseLvgl } from './lvglParser.js';
@@ -39,15 +39,37 @@ export function parseYamlToProject(rawYaml: string): Esp32Project {
     mcu: esp32Config.variant || esp32Config.framework?.type || 'ESP32-S3'
   };
 
+  // Parse fonts
+  const fonts: FontConfig[] = [];
+  if (Array.isArray(parsedYaml.font)) {
+    for (const f of parsedYaml.font) {
+      if (f && typeof f === 'object' && f.id) {
+        fonts.push({
+          id: f.id,
+          file: f.file || 'Roboto',
+          size: typeof f.size === 'number' ? f.size : 14
+        });
+      }
+    }
+  }
+
   const displayResult = detectDisplay(parsedYaml);
   const touchResult = detectTouchscreen(parsedYaml);
   const lvglResult = parseLvgl(parsedYaml);
 
   issues.push(...displayResult.issues, ...touchResult.issues, ...lvglResult.issues);
 
+  if (fonts.length > 0) {
+    issues.push({
+      type: 'INFO',
+      message: `Parsed ${fonts.length} custom font definition(s).`
+    });
+  }
+
   return {
     name: board.name || 'ESP32 Project',
     board,
+    fonts: fonts.length > 0 ? fonts : undefined,
     display: displayResult.display,
     touchscreen: touchResult.touchscreen,
     lvgl: lvglResult.lvgl,

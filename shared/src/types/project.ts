@@ -6,6 +6,12 @@ export interface BoardConfig {
   mcu?: string;
 }
 
+export interface FontConfig {
+  id: string;
+  file: string;
+  size: number;
+}
+
 export interface DisplayConfig {
   id: string;
   platform?: string;
@@ -65,6 +71,7 @@ export interface LvglWidget {
   width?: number;
   height?: number;
   text?: string;
+  textFont?: string;
   value?: number;
   minValue?: number;
   maxValue?: number;
@@ -100,6 +107,7 @@ export interface ValidationIssue {
 export interface Esp32Project {
   name: string;
   board: BoardConfig;
+  fonts?: FontConfig[];
   display: DisplayConfig;
   touchscreen?: TouchConfig;
   lvgl: LvglConfig;

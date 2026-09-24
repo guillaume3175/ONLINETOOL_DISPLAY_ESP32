@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { DisplayConfig, LvglWidget } from '@esp32-designer/shared';
 import { WidgetRenderer } from './WidgetRenderer.tsx';
-import { ZoomIn, ZoomOut, RotateCw, Grid, Maximize } from 'lucide-react';
+import { ZoomIn, ZoomOut, RotateCw, Grid, Maximize, Play, Pause, Layers } from 'lucide-react';
 
 interface DisplaySimulatorProps {
   display: DisplayConfig;
@@ -21,6 +21,8 @@ export const DisplaySimulator: React.FC<DisplaySimulatorProps> = ({
   const [zoom, setZoom] = useState<number>(100);
   const [showGrid, setShowGrid] = useState<boolean>(true);
   const [rotationOverride, setRotationOverride] = useState<number>(display.rotation || 0);
+  const [activeTileIndex, setActiveTileIndex] = useState<number>(0);
+  const [isAnimating, setIsAnimating] = useState<boolean>(false);
 
   const effectiveRotation = rotationOverride % 360;
   const isRotated = effectiveRotation === 90 || effectiveRotation === 270;
@@ -28,12 +30,21 @@ export const DisplaySimulator: React.FC<DisplaySimulatorProps> = ({
   const canvasWidth = isRotated ? display.height : display.width;
   const canvasHeight = isRotated ? display.width : display.height;
 
+  const tileviewWidget = widgets.find((w) => w.type === 'tileview');
+  const availableTiles = tileviewWidget?.children || [];
+
   const handleZoomIn = () => setZoom((z) => Math.min(200, z + 25));
   const handleZoomOut = () => setZoom((z) => Math.max(25, z - 25));
   const handleRotate = () => setRotationOverride((r) => (r + 90) % 360);
 
+  // If tileview exists with multiple tiles, filter widgets to render
+  const renderedWidgets = availableTiles.length > 0
+    ? [availableTiles[activeTileIndex % availableTiles.length]]
+    : widgets;
+
   return (
     <div className="flex-1 flex flex-col bg-slate-950 overflow-hidden relative">
+      {/* Simulator Toolbar */}
       <div className="h-10 bg-darkSidebar border-b border-slate-800 px-4 flex items-center justify-between text-xs text-slate-300">
         <div className="flex items-center gap-3">
           <span className="font-semibold text-slate-200">
@@ -44,7 +55,40 @@ export const DisplaySimulator: React.FC<DisplaySimulatorProps> = ({
           </span>
         </div>
 
+        {/* Phase 2: Multi-tile Navigation Controls */}
+        {availableTiles.length > 1 && (
+          <div className="flex items-center gap-1.5 bg-slate-900 border border-slate-800 px-2 py-1 rounded">
+            <Layers className="w-3.5 h-3.5 text-accentBlue" />
+            <span className="text-[10px] text-slate-400">Tile:</span>
+            {availableTiles.map((tile, idx) => (
+              <button
+                key={tile.id}
+                onClick={() => setActiveTileIndex(idx)}
+                className={`px-1.5 py-0.5 text-[10px] rounded font-medium ${
+                  idx === activeTileIndex ? 'bg-accentBlue text-slate-950' : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                {tile.id}
+              </button>
+            ))}
+          </div>
+        )}
+
         <div className="flex items-center gap-2">
+          {/* Phase 2: Animation Timeline Preview Toggle */}
+          <button
+            onClick={() => setIsAnimating(!isAnimating)}
+            title="Toggle Simulator Animation Preview"
+            className={`flex items-center gap-1 px-2 py-0.5 rounded text-[10px] ${
+              isAnimating ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40' : 'bg-slate-800 text-slate-400'
+            }`}
+          >
+            {isAnimating ? <Pause className="w-3 h-3" /> : <Play className="w-3 h-3" />}
+            Anim
+          </button>
+
+          <div className="h-4 w-[1px] bg-slate-800 mx-1" />
+
           <button
             onClick={() => setShowGrid(!showGrid)}
             title="Toggle Grid"
@@ -79,6 +123,7 @@ export const DisplaySimulator: React.FC<DisplaySimulatorProps> = ({
         </div>
       </div>
 
+      {/* Display Canvas Viewport */}
       <div
         className="flex-1 overflow-auto flex items-center justify-center p-8 select-none"
         onClick={() => onSelectWidget('')}
@@ -90,7 +135,9 @@ export const DisplaySimulator: React.FC<DisplaySimulatorProps> = ({
             transformOrigin: 'center center'
           }}
         >
+          {/* Bezel / Hardware Casing Frame */}
           <div className="bg-slate-900 p-3 rounded-2xl border border-slate-700 shadow-2xl">
+            {/* Display Panel */}
             <div
               style={{
                 width: `${canvasWidth}px`,
@@ -98,9 +145,9 @@ export const DisplaySimulator: React.FC<DisplaySimulatorProps> = ({
               }}
               className={`bg-slate-900 border border-slate-800 rounded relative overflow-hidden ${
                 showGrid ? 'bg-[radial-gradient(#334155_1px,transparent_1px)] [background-size:10px_10px]' : ''
-              }`}
+              } ${isAnimating ? 'animate-pulse' : ''}`}
             >
-              {widgets.map((widget) => (
+              {renderedWidgets.map((widget) => (
                 <WidgetRenderer
                   key={widget.id}
                   widget={widget}

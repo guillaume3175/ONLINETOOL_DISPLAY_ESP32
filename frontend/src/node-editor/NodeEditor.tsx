@@ -7,7 +7,7 @@ import {
   Edge
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { Esp32Project } from '@esp32-designer/shared';
+import { Esp32Project, LvglWidget } from '@esp32-designer/shared';
 
 interface NodeEditorProps {
   project: Esp32Project;
@@ -23,14 +23,14 @@ export const NodeEditor: React.FC<NodeEditorProps> = ({ project, onSelectWidget 
       id: 'node-board',
       position: { x: 50, y: 150 },
       data: { label: `ESP32 (${project.board.board || 'DevKit'})` },
-      style: { background: '#1e293b', color: '#f8fafc', border: '1px solid #3b82f6', borderRadius: '8px' }
+      style: { background: '#1e293b', color: '#f8fafc', border: '1px solid #3b82f6', borderRadius: '8px', padding: '10px' }
     });
 
     nodesList.push({
       id: 'node-display',
       position: { x: 250, y: 80 },
       data: { label: `Display (${project.display.width}x${project.display.height})` },
-      style: { background: '#1e293b', color: '#f8fafc', border: '1px solid #10b981', borderRadius: '8px' }
+      style: { background: '#1e293b', color: '#f8fafc', border: '1px solid #10b981', borderRadius: '8px', padding: '10px' }
     });
     edgesList.push({ id: 'e-board-display', source: 'node-board', target: 'node-display', animated: true });
 
@@ -39,7 +39,7 @@ export const NodeEditor: React.FC<NodeEditorProps> = ({ project, onSelectWidget 
         id: 'node-touch',
         position: { x: 250, y: 220 },
         data: { label: `Touch (${project.touchscreen.driver})` },
-        style: { background: '#1e293b', color: '#f8fafc', border: '1px solid #f59e0b', borderRadius: '8px' }
+        style: { background: '#1e293b', color: '#f8fafc', border: '1px solid #f59e0b', borderRadius: '8px', padding: '10px' }
       });
       edgesList.push({ id: 'e-board-touch', source: 'node-board', target: 'node-touch', animated: true });
     }
@@ -48,21 +48,50 @@ export const NodeEditor: React.FC<NodeEditorProps> = ({ project, onSelectWidget 
       id: 'node-lvgl-root',
       position: { x: 480, y: 80 },
       data: { label: 'LVGL Screen' },
-      style: { background: '#312e81', color: '#e0e7ff', border: '1px solid #6366f1', borderRadius: '8px' }
+      style: { background: '#312e81', color: '#e0e7ff', border: '1px solid #6366f1', borderRadius: '8px', padding: '10px' }
     });
     edgesList.push({ id: 'e-display-lvgl', source: 'node-display', target: 'node-lvgl-root' });
 
-    let yOffset = 20;
-    project.lvgl.widgets.forEach((widget) => {
+    // Recursive helper to traverse widgets & children
+    let yCounters: Record<number, number> = {};
+
+    function addWidgetNodes(widget: LvglWidget, parentNodeId: string, level: number) {
+      const levelX = 480 + level * 220;
+      yCounters[level] = (yCounters[level] || 0) + 1;
+      const levelY = yCounters[level] * 70;
+
       const widgetNodeId = `node-widget-${widget.id}`;
+      const isContainer = widget.type === 'tileview' || widget.type === 'container' || widget.type === 'tile' || widget.type === 'obj';
+
       nodesList.push({
         id: widgetNodeId,
-        position: { x: 700, y: yOffset },
+        position: { x: levelX, y: levelY },
         data: { label: `${widget.type.toUpperCase()}: ${widget.id}` },
-        style: { background: '#0f172a', color: '#cbd5e1', border: '1px solid #475569', borderRadius: '6px' }
+        style: {
+          background: isContainer ? '#1e1b4b' : '#0f172a',
+          color: isContainer ? '#818cf8' : '#cbd5e1',
+          border: isContainer ? '1px solid #6366f1' : '1px solid #475569',
+          borderRadius: '6px',
+          padding: '8px',
+          fontSize: '12px'
+        }
       });
-      edgesList.push({ id: `e-lvgl-${widget.id}`, source: 'node-lvgl-root', target: widgetNodeId });
-      yOffset += 70;
+
+      edgesList.push({
+        id: `e-${parentNodeId}-${widget.id}`,
+        source: parentNodeId,
+        target: widgetNodeId
+      });
+
+      if (widget.children && widget.children.length > 0) {
+        widget.children.forEach((child) => {
+          addWidgetNodes(child, widgetNodeId, level + 1);
+        });
+      }
+    }
+
+    project.lvgl.widgets.forEach((widget) => {
+      addWidgetNodes(widget, 'node-lvgl-root', 1);
     });
 
     return { nodes: nodesList, edges: edgesList };
