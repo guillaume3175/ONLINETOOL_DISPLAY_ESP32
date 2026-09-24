@@ -1,0 +1,60 @@
+esphome:
+  name: waveshare-s3-147b
+
+esp32:
+  board: esp32-s3-devkitc-1
+
+display:
+  - platform: st7789v
+    model: Waveshare 1.47inch LCD
+    id: main_display
+    width: 172
+    height: 320
+    rotation: 0
+
+touchscreen:
+  - platform: cst816s
+    sda_pin: GPIO6
+    scl_pin: GPIO7
+
+lvgl:
+  displays:
+    - main_display
+
+  widgets:
+    - label:
+        id: status_label
+        text: "Waveshare S3 1.47"
+        x: 15
+        y: 15
+
+    - button:
+        id: power_btn
+        text: "TOGGLE"
+        x: 15
+        y: 50
+        width: 140
+        height: 40
+
+    - slider:
+        id: brightness
+        x: 15
+        y: 110
+        width: 140
+        value: 80
+
+    - switch:
+        id: wifi_switch
+        text: "WiFi"
+        x: 15
+        y: 160
+        checked: true
+
+    - dropdown:
+        id: mode_select
+        x: 15
+        y: 210
+        options:
+          - Auto
+          - Manual
+          - Eco

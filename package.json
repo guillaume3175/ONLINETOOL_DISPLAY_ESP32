@@ -1,0 +1,22 @@
+{
+  "name": "esp32-display-lvgl-designer",
+  "version": "1.0.0",
+  "private": true,
+  "description": "ESP32 Display & LVGL Graphic Designer / Simulator",
+  "workspaces": [
+    "shared",
+    "backend",
+    "frontend"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev -w backend\" \"npm run dev -w frontend\"",
+    "build": "npm run build -w shared && npm run build -w backend && npm run build -w frontend",
+    "test": "vitest run",
+    "typecheck": "tsc --build"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "typescript": "^5.8.2",
+    "vitest": "^3.0.7"
+  }
+}
