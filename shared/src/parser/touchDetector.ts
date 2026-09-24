@@ -22,7 +22,7 @@ export function detectTouchscreen(yamlObj: any): { touchscreen?: TouchConfig; is
   const driver = platform || model || 'Unknown';
 
   let busType: TouchConfig['busType'] = 'Unknown';
-  if (rawTouch.i2c_id || rawTouch.sda_pin) {
+  if (yamlObj?.i2c || rawTouch.i2c_id || rawTouch.sda_pin) {
     busType = 'I2C';
   } else if (rawTouch.spi_id || rawTouch.cs_pin) {
     busType = 'SPI';

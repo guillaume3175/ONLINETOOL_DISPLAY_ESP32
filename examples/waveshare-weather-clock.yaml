@@ -1,0 +1,55 @@
+esphome:
+  name: waveshare-s3-147b
+  friendly_name: Waveshare 1.47B Horloge Météo
+
+esp32:
+  board: esp32-s3-devkitc-1
+  framework:
+    type: esp-idf
+
+display:
+  - platform: mipi_spi
+    id: lcd
+    model: CUSTOM
+    dc_pin: GPIO45
+    cs_pin: GPIO21
+    reset_pin: GPIO40
+    dimensions:
+      width: 172
+      height: 320
+
+touchscreen:
+  - platform: axs5106
+    id: mini_touch
+    display: lcd
+
+lvgl:
+  displays:
+    - lcd
+  widgets:
+    - tileview:
+        id: iphone_swipe
+        x: 0
+        y: 0
+        width: 172
+        height: 320
+        tiles:
+          - id: canvas_1
+            bg_color: 0xF2F2F7
+            widgets:
+              - obj:
+                  x: 10
+                  y: 50
+                  width: 152
+                  height: 108
+                  bg_color: 0xFFFFFF
+                  radius: 24
+                  widgets:
+                    - label:
+                        id: lv_time
+                        x: 0
+                        y: 10
+                        width: 152
+                        text: "12:42"
+                        text_font: font_heure
+                        text_color: 0x1C1C1E

@@ -19,19 +19,29 @@ export function detectDisplay(yamlObj: any): { display: DisplayConfig; issues: V
   const model = rawDisplay.model;
   const driver = platform || model || 'Unknown';
 
-  const width = typeof rawDisplay.width === 'number' ? rawDisplay.width : (rawDisplay.dimensions?.width || 0);
-  const height = typeof rawDisplay.height === 'number' ? rawDisplay.height : (rawDisplay.dimensions?.height || 0);
+  let width = typeof rawDisplay.width === 'number' ? rawDisplay.width : undefined;
+  let height = typeof rawDisplay.height === 'number' ? rawDisplay.height : undefined;
+
+  if (rawDisplay.dimensions && typeof rawDisplay.dimensions === 'object') {
+    if (!width && typeof rawDisplay.dimensions.width === 'number') {
+      width = rawDisplay.dimensions.width;
+    }
+    if (!height && typeof rawDisplay.dimensions.height === 'number') {
+      height = rawDisplay.dimensions.height;
+    }
+  }
+
   const rotation = typeof rawDisplay.rotation === 'number' ? rawDisplay.rotation : 0;
 
   if (!width || !height) {
     issues.push({
       type: 'WARNING',
-      message: `Display dimensions missing or incomplete (width: ${width || 'Unknown'}, height: ${height || 'Unknown'}).`
+      message: `Display dimensions missing or incomplete (width: ${width || 'Unknown'}, height: ${height || 'Unknown'}). Defaulting to 172x320.`
     });
   }
 
   let busType: DisplayConfig['busType'] = 'Unknown';
-  if (rawDisplay.spi_id || rawDisplay.cs_pin || rawDisplay.dc_pin) {
+  if (rawDisplay.spi_id || rawDisplay.cs_pin || rawDisplay.dc_pin || platform === 'mipi_spi' || platform === 'st7789v') {
     busType = 'SPI';
   } else if (rawDisplay.i2c_id || rawDisplay.sda_pin) {
     busType = 'I2C';
@@ -48,7 +58,7 @@ export function detectDisplay(yamlObj: any): { display: DisplayConfig; issues: V
     height: height || 320,
     rotation,
     busType,
-    colorDepth: rawDisplay.color_depth || (rawDisplay.buffer_size ? 16 : undefined),
+    colorDepth: rawDisplay.color_depth || (rawDisplay.pixel_mode ? 16 : undefined),
     backlightPin: rawDisplay.backlight_pin || rawDisplay.bk_light_pin,
     spiCsPin: rawDisplay.cs_pin,
     spiDcPin: rawDisplay.dc_pin,

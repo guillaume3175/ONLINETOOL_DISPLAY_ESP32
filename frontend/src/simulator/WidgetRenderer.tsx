@@ -25,8 +25,19 @@ export const WidgetRenderer: React.FC<WidgetRendererProps> = ({
     top: `${widget.y}px`,
     width: widget.width ? `${widget.width}px` : undefined,
     height: widget.height ? `${widget.height}px` : undefined,
+    backgroundColor: widget.style?.bg_color,
+    color: widget.style?.text_color,
+    borderRadius: widget.style?.radius !== undefined ? `${widget.style.radius}px` : undefined,
+    borderWidth: widget.style?.border_width !== undefined ? `${widget.style.border_width}px` : undefined,
+    borderColor: widget.style?.border_color || 'transparent',
     boxSizing: 'border-box'
   };
+
+  if (widget.style?.align === 'center') {
+    style.left = '50%';
+    style.top = '50%';
+    style.transform = 'translate(-50%, -50%)';
+  }
 
   const borderClass = isSelected
     ? 'ring-2 ring-accentBlue ring-offset-1 ring-offset-black z-20'
@@ -38,7 +49,7 @@ export const WidgetRenderer: React.FC<WidgetRendererProps> = ({
         <div
           onClick={handleClick}
           style={style}
-          className={`cursor-pointer px-1 py-0.5 text-xs text-slate-100 rounded select-none ${borderClass}`}
+          className={`cursor-pointer px-1 py-0.5 text-xs rounded select-none ${borderClass}`}
         >
           {widget.text || 'Label'}
         </div>
@@ -132,60 +143,19 @@ export const WidgetRenderer: React.FC<WidgetRendererProps> = ({
         </div>
       );
 
-    case 'bar':
-      const barVal = widget.value ?? 60;
-      return (
-        <div
-          onClick={handleClick}
-          style={{ ...style, width: widget.width ? `${widget.width}px` : '100px', height: widget.height ? `${widget.height}px` : '12px' }}
-          className={`cursor-pointer bg-slate-700 rounded overflow-hidden relative ${borderClass}`}
-        >
-          <div
-            className="bg-accentBlue h-full transition-all"
-            style={{ width: `${Math.min(100, Math.max(0, barVal))}%` }}
-          />
-        </div>
-      );
-
-    case 'dropdown':
-      const optionsList = widget.options || ['Option 1', 'Option 2', 'Option 3'];
-      return (
-        <div
-          onClick={handleClick}
-          style={style}
-          className={`cursor-pointer ${borderClass}`}
-        >
-          <select
-            value={optionsList[widget.selectedIndex || 0]}
-            onChange={(e) => {
-              const idx = optionsList.indexOf(e.target.value);
-              if (onUpdateWidget && idx !== -1) {
-                onUpdateWidget({ ...widget, selectedIndex: idx });
-              }
-            }}
-            className="bg-slate-800 text-xs border border-slate-600 rounded px-2 py-1 text-slate-100 focus:outline-none"
-          >
-            {optionsList.map((opt, i) => (
-              <option key={i} value={opt}>
-                {opt}
-              </option>
-            ))}
-          </select>
-        </div>
-      );
-
+    case 'tileview':
     case 'container':
       return (
         <div
           onClick={handleClick}
           style={{
             ...style,
-            width: widget.width ? `${widget.width}px` : '140px',
-            height: widget.height ? `${widget.height}px` : '100px'
+            width: widget.width ? `${widget.width}px` : '100%',
+            height: widget.height ? `${widget.height}px` : '100%'
           }}
-          className={`cursor-pointer bg-slate-800/60 border border-slate-600/80 rounded relative p-2 ${borderClass}`}
+          className={`cursor-pointer rounded relative overflow-hidden ${borderClass}`}
         >
-          {widget.text && <div className="text-[10px] text-slate-400 font-bold mb-1">{widget.text}</div>}
+          {widget.text && <div className="text-[10px] opacity-70 font-bold p-1">{widget.text}</div>}
           {widget.children?.map((child) => (
             <WidgetRenderer
               key={child.id}

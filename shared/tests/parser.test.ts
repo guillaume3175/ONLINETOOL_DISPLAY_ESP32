@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { parseYamlToProject } from '../src/parser/yamlParser.js';
 import { generateYamlFromProject } from '../src/generator/yamlGenerator.js';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 
 describe('YAML Parser & Detector', () => {
   it('correctly parses ESPHome display and LVGL widgets', () => {
@@ -46,6 +48,20 @@ lvgl:
     expect(project.lvgl.widgets[0].text).toBe('Hello World');
     expect(project.lvgl.widgets[1].type).toBe('button');
     expect(project.lvgl.widgets[1].width).toBe(100);
+  });
+
+  it('correctly parses complex Weather Clock YAML structure with mipi_spi, dimensions, axs5106, tileview and obj', () => {
+    const weatherClockYaml = readFileSync(join(__dirname, '../../examples/waveshare-weather-clock.yaml'), 'utf-8');
+    const project = parseYamlToProject(weatherClockYaml);
+
+    expect(project.display.width).toBe(172);
+    expect(project.display.height).toBe(320);
+    expect(project.display.platform).toBe('mipi_spi');
+    expect(project.touchscreen?.platform).toBe('axs5106');
+    expect(project.lvgl.widgets.length).toBe(1);
+    expect(project.lvgl.widgets[0].type).toBe('tileview');
+    expect(project.lvgl.widgets[0].children?.length).toBe(1);
+    expect(project.lvgl.widgets[0].children![0].children![0].type).toBe('container');
   });
 
   it('handles unknown widgets gracefully without throwing', () => {
