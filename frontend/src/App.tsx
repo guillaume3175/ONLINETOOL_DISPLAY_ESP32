@@ -323,6 +323,7 @@ export default function App() {
               selectedWidgetId={selectedWidgetId}
               onSelectWidget={setSelectedWidgetId}
               onUpdateWidget={handleUpdateWidget}
+              touchscreen={project.touchscreen}
             />
           )}
 
