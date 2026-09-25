@@ -6,3 +6,4 @@ export * from './parser/lvglParser.js';
 export * from './generator/yamlGenerator.js';
 export * from './graph/connectedComponents.js';
 export * from './graph/groupLayout.js';
+export * from './simulator/touchCoordinates.js';
